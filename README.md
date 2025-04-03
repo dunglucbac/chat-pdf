@@ -1,3 +1,14 @@
+# PDF Question Answering Application
+
+This application allows users to upload PDF files to a backend system. Once uploaded, the system processes the PDF and enables users to ask questions related to the content of the PDF. The application leverages Large Language Models (LLMs) to provide accurate and context-aware answers.
+
+## Features
+
+- Upload PDF files to the backend system.
+- Extract and process text from uploaded PDFs.
+- Use LLMs to answer questions based on the content of the uploaded PDFs.
+- Supports multiple concurrent users.
+
 # First Time Setup
 
 ## Using Pipenv [Recommended]
