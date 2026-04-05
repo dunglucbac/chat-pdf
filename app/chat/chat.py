@@ -11,6 +11,34 @@ from app.chat.tracing.langfuse_client import langfuse_instance
 
 
 def select_component(component_type, component_map, chat_args):
+    """
+    The function first checks whether the conversation already has a saved
+    component name for the given component_type (for example: llm, retriever,
+    or memory). If a previous component exists, it reuses that component to
+    keep behavior consistent within the conversation.
+
+    If no component has been saved yet, it chooses one using weighted random
+    selection based on historical scores, then builds that component.
+
+    Args:
+        component_type (str): The component category to resolve.
+            Expected values are typically "llm", "retriever", or "memory".
+        component_map (dict[str, Callable[[ChatArgs], Any]]): Mapping of
+            component name to builder function.
+        chat_args (ChatArgs): Conversation context used by builder functions.
+
+    Returns:
+        tuple[str, Any]: A tuple containing:
+            - selected component name
+            - instantiated component object
+
+    Raises:
+        KeyError: If component_type is missing from stored conversation
+            components, or if the selected component name does not exist
+            in component_map.
+        ValueError: If score-based selection receives an invalid component_type
+            (propagated from random_component_by_score).
+    """
     components = get_conversation_components(chat_args.conversation_id)
     previous_component = components[component_type]
 
