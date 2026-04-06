@@ -10,6 +10,42 @@ from app.web.db.models import User, Model
 
 
 def load_model(Model: Model, extract_id_lambda=None):
+    """
+    Decorator factory that loads a SQLAlchemy model instance from the database
+    and injects it into the view function, replacing the raw ID argument.
+
+    Also enforces ownership — raises Unauthorized if the loaded instance does
+    not belong to the currently logged-in user (g.user).
+
+    Args:
+        Model (Model): The SQLAlchemy model class to query (e.g. Conversation, Pdf).
+        extract_id_lambda (Callable[[Request], str] | None): Optional function that
+            receives the Flask request and returns the model ID. Use this when the ID
+            comes from a query string parameter (e.g. ``lambda r: r.args.get("pdf_id")``).
+            If omitted, the ID is read from the URL path kwargs using the convention
+            ``{model_name}_id`` (e.g. ``conversation_id`` for Conversation).
+
+    Returns:
+        Callable: A decorator that wraps a view function with fetch + auth logic.
+
+    Raises:
+        ValueError: If the model ID cannot be found in either kwargs or the lambda.
+        NoResultFound: If no record with the given ID exists in the database (→ 404).
+        Unauthorized: If the record's user_id does not match g.user.id (→ 401).
+
+    Example:
+        @bp.route("/<string:conversation_id>/messages", methods=["POST"])
+        @login_required
+        @load_model(Conversation)
+        def create_message(conversation):
+            ...
+
+        @bp.route("/", methods=["POST"])
+        @login_required
+        @load_model(Pdf, lambda r: r.args.get("pdf_id"))
+        def create_conversation(pdf):
+            ...
+    """
     def decorator(view):
         @functools.wraps(view)
         def wrapped_view(**kwargs):
