@@ -1,6 +1,8 @@
 import random
+from typing import Any, Callable
+
 from langchain.chat_models import ChatOpenAI
-from app.chat.models import ChatArgs
+from app.chat.models import ChatArgs, ComponentType
 from app.chat.vector_stores import retriever_map
 from app.chat.llms import llm_map
 from app.chat.memories import memory_map
@@ -10,7 +12,11 @@ from app.chat.score import random_component_by_score
 from app.chat.tracing.langfuse_client import langfuse_instance
 
 
-def select_component(component_type, component_map, chat_args):
+def select_component(
+    component_type: ComponentType,
+    component_map: dict[str, Callable[[ChatArgs], Any]],
+    chat_args: ChatArgs,
+) -> tuple[str, Any]:
     """
     The function first checks whether the conversation already has a saved
     component name for the given component_type (for example: llm, retriever,
@@ -21,8 +27,8 @@ def select_component(component_type, component_map, chat_args):
     selection based on historical scores, then builds that component.
 
     Args:
-        component_type (str): The component category to resolve.
-            Expected values are typically "llm", "retriever", or "memory".
+        component_type (ComponentType): The component category to resolve.
+            One of ComponentType.LLM, ComponentType.RETRIEVER, or ComponentType.MEMORY.
         component_map (dict[str, Callable[[ChatArgs], Any]]): Mapping of
             component name to builder function.
         chat_args (ChatArgs): Conversation context used by builder functions.
@@ -51,10 +57,10 @@ def select_component(component_type, component_map, chat_args):
         return random_name, builder(chat_args)
 
 
-def build_chat(chat_args: ChatArgs):
-    retriever_name, retriever = select_component("retriever", retriever_map, chat_args)
-    llm_name, llm = select_component("llm", llm_map, chat_args)
-    memory_name, memory = select_component("memory", memory_map, chat_args)
+def build_chat(chat_args: ChatArgs) -> StreamingConversationalRetrievalChain:
+    retriever_name, retriever = select_component(ComponentType.RETRIEVER, retriever_map, chat_args)
+    llm_name, llm = select_component(ComponentType.LLM, llm_map, chat_args)
+    memory_name, memory = select_component(ComponentType.MEMORY, memory_map, chat_args)
     set_conversation_components(
         chat_args.conversation_id,
         llm=llm_name,

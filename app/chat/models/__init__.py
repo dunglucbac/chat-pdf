@@ -1,4 +1,12 @@
+from enum import Enum
+
 from pydantic import BaseModel, Extra
+
+
+class ComponentType(str, Enum):
+    LLM = "llm"
+    RETRIEVER = "retriever"
+    MEMORY = "memory"
 
 
 class Metadata(BaseModel, extra=Extra.allow):
