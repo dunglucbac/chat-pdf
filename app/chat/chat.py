@@ -58,6 +58,41 @@ def select_component(
 
 
 def build_chat(chat_args: ChatArgs) -> StreamingConversationalRetrievalChain:
+    """
+    Build and return a StreamingConversationalRetrievalChain for the given conversation.
+
+    Called by conversation_views.create_message() on every POST to
+    /api/conversations/<conversation_id>/messages. It selects or reuses the LLM,
+    retriever, and memory components, persists the chosen names to the conversation
+    record, then wires everything into a chain ready to answer questions about a PDF.
+
+    The returned chain supports two invocation modes depending on the ``streaming``
+    flag in chat_args:
+
+    - **Streaming** (``chat_args.streaming=True``): the caller invokes ``chat.stream(input)``,
+      which spawns a background thread to run the chain. Tokens are put onto a queue by
+      ``StreamingHandler`` as the LLM emits them, and yielded back to Flask's
+      ``stream_with_context`` for Server-Sent Events delivery to the browser.
+
+    - **Blocking** (``chat_args.streaming=False``): the caller invokes ``chat.run(input)``,
+      which waits for the full LLM response before returning it as a JSON payload.
+
+    Internally the chain uses a second non-streaming LLM (``condense_question_llm``)
+    to rephrase follow-up questions into standalone queries using the conversation
+    history before hitting the retriever. Every invocation is traced in Langfuse via
+    ``TraceableChain.__call__``.
+
+    Args:
+        chat_args (ChatArgs): Conversation context containing:
+            - conversation_id: used to look up and persist component selections.
+            - pdf_id: scopes Pinecone retrieval to the correct document.
+            - streaming: controls whether ChatOpenAI streams tokens.
+            - metadata: passed to Langfuse for trace correlation.
+
+    Returns:
+        StreamingConversationalRetrievalChain: Configured chain combining
+            StreamableChain, TraceableChain, and ConversationalRetrievalChain.
+    """
     retriever_name, retriever = select_component(ComponentType.RETRIEVER, retriever_map, chat_args)
     llm_name, llm = select_component(ComponentType.LLM, llm_map, chat_args)
     memory_name, memory = select_component(ComponentType.MEMORY, memory_map, chat_args)
